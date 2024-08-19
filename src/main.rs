@@ -72,17 +72,21 @@ fn main() {
     for line in stdin().lock().lines() {
         let line = line.unwrap();
         if line.starts_with("@") {
-            println!("{}\n", line);
+            println!("{}", line)
         } else {
             let row = line.split('\t').collect::<Vec<&str>>();
             let key = name_to_key(&format!("@{}", row[0]), &mut primary_key_map);
             match readnames_to_comments.get(&key) {
                 Some(comment_key) => {
-                    println!("{}\t{}\n", line, primary_key_map.get_key(*comment_key).unwrap());
+                    let comment = primary_key_map.get_key(*comment_key).unwrap();
+                    if !comment.starts_with("BC:Z:") {
+                        warn!("Comment looks wrong: {} for {}", comment, row[0]);
+                    }
+                    println!("{}\t{}", line, comment);
                 },
                 None => {
                     error!("No comment found for read name {}", row[0]);
-                    println!("{}\t{}\n", row[0], "XC:Z:UNKNOWN");
+                    println!("{}\t{}", line, "XC:Z:UNKNOWN");
                 }
             }
         }
