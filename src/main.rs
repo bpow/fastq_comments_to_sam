@@ -1,5 +1,6 @@
-use std::io::BufRead;
+use std::io::{BufRead, BufReader, stdin};
 use std::collections::HashMap;
+use log::{info, warn, error};
 
 struct PrimaryKeyMap {
     map: HashMap<String, u16>,
@@ -42,19 +43,49 @@ fn name_to_key(name: &str, primary_key_map: &mut PrimaryKeyMap) -> [u16; 4] {
 }
 
 fn main() {
-    let stdin = std::io::stdin();
+    env_logger::init();
     let mut primary_key_map = PrimaryKeyMap::new();
     let mut readnames_to_comments: HashMap<[u16; 4], u16> = HashMap::new();
-    for line in stdin.lock().lines() {
-        let line = line.unwrap();
-        let parts: Vec<&str> = line.splitn(2, ' ').collect();
-        let read_name = parts[0];
-        let fastq_comment = parts[1];
-        let key = name_to_key(read_name, &mut primary_key_map);
-        readnames_to_comments.insert(key, primary_key_map.get(fastq_comment));
+    let mut args = std::env::args().collect::<Vec<String>>();
+
+    for barcodefile in args.drain(1..) {
+        let file = std::fs::File::open(barcodefile.clone()).unwrap();
+        let reader = BufReader::new(file);
+        for line in reader.lines() {
+            let line = line.unwrap();
+            let parts: Vec<&str> = line.splitn(2, ' ').collect();
+            let read_name = parts[0];
+            let key = name_to_key(read_name, &mut primary_key_map);
+            let fastq_comment = parts[1];
+            let fastq_comment = if fastq_comment.starts_with("1:N:0:") || fastq_comment.starts_with("2:N:0:") {
+                format!("BC:Z:{}", &fastq_comment[6..])
+            } else {
+                warn!("Comment {} does not start with 1:N:0: or 2:N:0:, will use XC tag", fastq_comment);
+                format!("XC:Z:{}", fastq_comment)
+            };
+            readnames_to_comments.insert(key, primary_key_map.get(&fastq_comment));
+        }
+        info!("Read {} comments after reading from {}", readnames_to_comments.len(), barcodefile);
+        info!("Number of strings 'interned': {}", primary_key_map.reverse_map.len());
     }
-    // just making sure get_key works
-    println!("{}", primary_key_map.get_key(0).unwrap());
-    println!("Number of strings 'interned': {}", primary_key_map.reverse_map.len());
-    println!("Read names to comments size: {:?}", readnames_to_comments.len());
+
+    for line in stdin().lock().lines() {
+        let line = line.unwrap();
+        if line.starts_with("@") {
+            println!("{}\n", line);
+        } else {
+            let row = line.split('\t').collect::<Vec<&str>>();
+            let key = name_to_key(&format!("@{}", row[0]), &mut primary_key_map);
+            match readnames_to_comments.get(&key) {
+                Some(comment_key) => {
+                    println!("{}\t{}\n", line, primary_key_map.get_key(*comment_key).unwrap());
+                },
+                None => {
+                    error!("No comment found for read name {}", row[0]);
+                    println!("{}\t{}\n", row[0], "XC:Z:UNKNOWN");
+                }
+            }
+        }
+    }
+    
 }
