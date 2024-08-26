@@ -64,7 +64,17 @@ fn main() {
                 warn!("Comment {} does not start with 1:N:0: or 2:N:0:, will use XC tag", fastq_comment);
                 format!("XC:Z:{}", fastq_comment)
             };
-            readnames_to_comments.insert(readname_key, comment_pkm.key_for_value(&fastq_comment));
+            let comment_id = comment_pkm.key_for_value(&fastq_comment);
+            let old_value = readnames_to_comments.insert(readname_key, comment_id);
+            match old_value {
+                Some(old_value) => {
+                    if old_value != comment_id {
+                        panic!("Identical readname key '{}' gave two different values: '{}' and '{}'",
+                            read_name, comment_pkm.value_for_key(old_value).unwrap(), fastq_comment);
+                    }
+                },
+                None => {}
+            }
         }
         info!("Read comments for {} readnames after reading from {}", readnames_to_comments.len(), barcodefile);
         info!("Number of distinct readname parts 'interned': {}", readname_part_pkm.reverse_map.len());
@@ -88,7 +98,7 @@ fn main() {
                 },
                 None => {
                     error!("No comment found for read name {}", row[0]);
-                    println!("{}\t{}", line, "XC:Z:UNKNOWN");
+                    // println!("{}\t{}", line, "XC:Z:UNKNOWN");
                 }
             }
         }
