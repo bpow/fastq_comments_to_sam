@@ -49,6 +49,15 @@ fn main() {
     let mut readnames_to_comments: HashMap<[u16; 4], u16> = HashMap::new();
     let mut args = std::env::args().collect::<Vec<String>>();
 
+    if args.len() < 2 {
+        eprintln!("Usage: samtools view -h input.sam | {} <barcodefile> [barcodefile...] > output.sam\n", args[0]);
+        eprintln!("This program reads a SAM file from stdin and adds the barcode information from the barcodefile(s) to the comments of the reads.\n");
+        eprintln!("The barcodefile(s) should contain one line per read, with the read name followed by a space and the barcode sequence.");
+        eprintln!("A good way to get that is to redirect a fastq file through awk to print just the header lines\n");
+        eprintln!("samtools view -h input.sam | {} <(xzcat file.fastq.xz | awk 'NR % 4 == 1') > samtools view -Ocram -o output.cram", args[0]);
+        std::process::exit(1);
+    }
+
     for barcodefile in args.drain(1..) {
         let file = std::fs::File::open(barcodefile.clone()).unwrap();
         let reader = BufReader::new(file);
