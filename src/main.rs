@@ -67,10 +67,12 @@ fn main() {
             let read_name = parts[0];
             let readname_key = name_to_readname_key(read_name, &mut readname_part_pkm);
             let fastq_comment = parts[1];
-            let fastq_comment = if fastq_comment.starts_with("1:N:0:") || fastq_comment.starts_with("2:N:0:") {
+            let fastq_comment = if fastq_comment.starts_with("BC:Z:") {
+                fastq_comment.to_string()
+            } else if fastq_comment.starts_with("1:N:0:") || fastq_comment.starts_with("2:N:0:") {
                 format!("BC:Z:{}", &fastq_comment[6..])
             } else {
-                warn!("Comment {} does not start with 1:N:0: or 2:N:0:, will use XC tag", fastq_comment);
+                warn!("Comment {} does not start with BC:Z:, 1:N:0: or 2:N:0:, will use XC tag", fastq_comment);
                 format!("XC:Z:{}", fastq_comment)
             };
             let comment_id = comment_pkm.key_for_value(&fastq_comment);
