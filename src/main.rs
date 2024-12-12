@@ -20,6 +20,9 @@ impl PrimaryKeyMap {
             Some(value) => *value,
             None => {
                 let new_value = self.reverse_map.len() as u16;
+                if new_value == std::u16::MAX {
+                    panic!("Too many distinct values in PrimaryKeyMap");
+                }
                 self.map.insert(key.to_string(), new_value);
                 self.reverse_map.push(key.to_string());
                 new_value
